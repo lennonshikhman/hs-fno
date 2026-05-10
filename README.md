@@ -286,6 +286,3 @@ If you use this code, please cite the accompanying paper:
 ## License
 
 See `LICENSE` for licensing information.
-
-```
-```
