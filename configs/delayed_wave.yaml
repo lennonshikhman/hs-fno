@@ -1,0 +1,10 @@
+benchmark: delayed_wave
+channels: 2
+solver:
+  boundary: periodic
+  force: tanh
+params:
+  c: [0.15, 0.35]
+  tau: [0.08, 0.18]
+  alpha: [0.5, 1.2]
+  beta: [0.1, 0.4]

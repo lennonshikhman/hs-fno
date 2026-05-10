@@ -1,0 +1,10 @@
+benchmark: epidemic_delay
+channels: 1
+static_channels: 1
+solver:
+  boundary: neumann
+params:
+  D: [0.002, 0.015]
+  beta: [1.0, 2.0]
+  gamma: [0.3, 0.8]
+  tau: [0.08, 0.18]

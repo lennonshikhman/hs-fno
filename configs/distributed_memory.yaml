@@ -1,0 +1,11 @@
+benchmark: distributed_memory
+channels: 1
+solver:
+  boundary: periodic
+  kernel: exponential
+  max_state: 20.0
+params:
+  nu: [0.002, 0.015]
+  a1: [0.3, 0.8]
+  a2: [-0.2, 0.2]
+  tau: [0.10, 0.22]

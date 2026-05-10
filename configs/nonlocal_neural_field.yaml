@@ -1,0 +1,10 @@
+benchmark: nonlocal_neural_field
+channels: 1
+solver:
+  boundary: periodic
+  sigma: tanh
+params:
+  tau0: [0.04, 0.08]
+  alpha: [0.05, 0.12]
+  gain: [0.8, 1.4]
+  width: [0.05, 0.12]

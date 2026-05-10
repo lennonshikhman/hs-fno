@@ -1,0 +1,9 @@
+torch
+numpy
+scipy
+matplotlib
+pandas
+tqdm
+PyYAML
+einops
+pytest

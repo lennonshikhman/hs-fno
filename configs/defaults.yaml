@@ -1,0 +1,185 @@
+seed: 7
+seeds: [7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+bootstrap_samples: 10000
+device: auto
+output_dir: outputs
+main_model: hs_fno
+data:
+  n_train: 12
+  n_val: 4
+  n_test: 4
+  nx: 64
+  ny: 32
+  dim: 1
+  total_time: 1.2
+  dt: 0.005
+  dt_save: 0.05
+  history_steps: 6
+  step_slices: 1
+training:
+  epochs: 100
+  patience: 20
+  min_delta: 0.000001
+  restore_best: true
+  batch_size: 16
+  lr: 0.001
+  weight_decay: 0.000001
+  grad_clip_norm: 1.0
+  rollout_weight: 0.0
+  semiflow_weight: 0.0
+  rollout_steps: 3
+models:
+  selected: [current_state, lag_stack, history2history, temporal_unet, convlstm, temporal_transformer, hs_fno]
+  backbone: fno
+  width: 48
+  depth: 4
+  coordinate_embedding: true
+  film: false
+  append_mode: segment
+  per_model:
+    current_state:
+      type: CurrentStateNO
+      backbone: conv
+      width: 32
+      depth: 3
+      coordinate_embedding: true
+      film: false
+    lag_stack:
+      type: LagStackNO
+      backbone: conv
+      width: 40
+      depth: 3
+      lags: 4
+      coordinate_embedding: true
+      film: false
+    history2history:
+      type: HistoryToHistoryNO
+      backbone: conv
+      width: 48
+      depth: 4
+      coordinate_embedding: true
+      film: false
+    temporal_unet:
+      type: TemporalUNet
+      backbone: conv
+      width: 48
+      depth: 3
+      coordinate_embedding: true
+      film: true
+    convlstm:
+      type: ConvLSTM
+      backbone: conv
+      width: 48
+      depth: 3
+      coordinate_embedding: true
+      film: true
+    temporal_transformer:
+      type: TemporalTransformer
+      backbone: transformer
+      width: 48
+      depth: 3
+      coordinate_embedding: true
+      film: true
+    hs_fno:
+      type: HistorySpaceFNO
+      backbone: fno
+      shift_append: true
+      predict_mode: future_slice
+      conditioning: constant_channels
+      use_rollout_loss: false
+      use_semiflow_loss: false
+      width: 64
+      depth: 4
+      coordinate_embedding: true
+      film: true
+      append_mode: segment
+    hsno_unet:
+      type: HistorySpaceNeuralOperator
+      backbone: unet
+      shift_append: true
+      predict_mode: future_slice
+      conditioning: constant_channels
+      width: 64
+      depth: 4
+      coordinate_embedding: true
+      film: true
+      append_mode: segment
+    hs_transformer:
+      type: HistorySpaceNeuralOperator
+      backbone: transformer
+      shift_append: true
+      predict_mode: future_slice
+      conditioning: constant_channels
+      width: 64
+      depth: 4
+      coordinate_embedding: true
+      film: true
+    hs_fno_rollout_semiflow:
+      type: HistorySpaceFNO
+      backbone: fno
+      shift_append: true
+      predict_mode: future_slice
+      conditioning: constant_channels
+      use_rollout_loss: true
+      use_semiflow_loss: true
+      width: 64
+      depth: 4
+      coordinate_embedding: true
+      film: true
+      append_mode: recursive
+ablations:
+  enabled: [hs_fno_no_shift, hs_fno_no_delay_conditioning, hs_fno_coord_conditioning, hs_fno_film_conditioning, hs_fno_rollout_semiflow, hs_fno_history_steps_4, hs_fno_history_steps_8, hs_fno_history_steps_12, hs_fno_history_resolution_4, hs_fno_history_resolution_8, hs_fno_history_resolution_12, hs_fno_per_delay_low, hs_fno_per_delay_high, hs_transformer, hsno_unet]
+  history_steps: [4, 8, 12]
+  history_resolutions: [4, 8, 12]
+quick:
+  data:
+    n_train: 4
+    n_val: 1
+    n_test: 1
+    nx: 24
+    ny: 12
+    total_time: 0.45
+    dt: 0.01
+    dt_save: 0.05
+    history_steps: 4
+  training:
+    epochs: 1
+    patience: 1
+    batch_size: 8
+    rollout_steps: 2
+  models:
+    width: 16
+    depth: 2
+    coordinate_embedding: false
+    film: false
+    per_model:
+      current_state: {width: 12, depth: 1, coordinate_embedding: false, film: false}
+      lag_stack: {width: 12, depth: 1, lags: 3, coordinate_embedding: false, film: false}
+      history2history: {width: 12, depth: 1, coordinate_embedding: false, film: false}
+      temporal_unet: {width: 12, depth: 1, coordinate_embedding: false, film: false}
+      convlstm: {width: 12, depth: 1, coordinate_embedding: false, film: false}
+      temporal_transformer: {width: 12, depth: 1, coordinate_embedding: false, film: false}
+      hs_fno: {width: 12, depth: 1, coordinate_embedding: false, film: false, append_mode: segment}
+      hsno_unet: {width: 12, depth: 1, coordinate_embedding: false, film: false, append_mode: segment}
+      hs_transformer: {width: 12, depth: 1, coordinate_embedding: false, film: false}
+      hs_fno_rollout_semiflow: {width: 12, depth: 1, coordinate_embedding: false, film: false, append_mode: recursive}
+evaluation:
+  rollout_horizons: [1, 5, 10, 20, 50, 100]
+  long_rollout_max_horizon: 100
+  record_divergence: true
+hparam_search:
+  trials: 1
+  selected_by: val_loss
+  spaces:
+    current_state: {width: [24, 32, 48], depth: [2, 3, 4], lr: [0.0005, 0.001]}
+    lag_stack: {width: [24, 40, 64], depth: [2, 3, 4], lags: [2, 4, 6], lr: [0.0005, 0.001]}
+    history2history: {width: [32, 48, 64], depth: [3, 4, 5], backbone: [conv, fno], lr: [0.0005, 0.001]}
+    temporal_unet: {width: [32, 48, 64], depth: [2, 3, 4], lr: [0.0005, 0.001]}
+    convlstm: {width: [32, 48, 64], depth: [1, 2, 3], lr: [0.0005, 0.001]}
+    temporal_transformer: {width: [32, 48, 64], depth: [2, 3, 4], lr: [0.0003, 0.001]}
+    hs_fno: {width: [48, 64, 96], depth: [3, 4, 5], coordinate_embedding: [true], film: [false, true], lr: [0.0005, 0.001]}
+capacity_sweep:
+  budgets: [100000, 300000, 1000000, 3000000, 10000000]
+  models: [hs_fno, history2history, lag_stack, current_state, temporal_unet, convlstm, temporal_transformer]
+  candidate_widths: [16, 32, 64]
+  candidate_depths: [1, 2, 3, 4]

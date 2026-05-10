@@ -1,0 +1,10 @@
+benchmark: delayed_reaction_diffusion
+channels: 1
+solver:
+  boundary: neumann
+  scheme: finite_difference
+  max_state: 20.0
+params:
+  D: [0.004, 0.02]
+  r: [1.0, 2.0]
+  tau: [0.10, 0.20]
