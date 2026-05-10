@@ -1,218 +1,153 @@
-# HS-FNO: History-Space Fourier Neural Operator for Non-Markovian PDEs
+# HS-FNO: History-Space Fourier Neural Operator for Non-Markovian Partial Differential Equations
 
-This repository contains the PyTorch implementation and experimental code for **HS-FNO (History-Space Fourier Neural Operator)**, a neural-operator surrogate for delay and memory-driven partial differential equations.
+This repository contains the reference PyTorch implementation and reproducibility workflow for the arXiv/SSRN preprint **“HS-FNO: History-Space Fourier Neural Operator for Non-Markovian Partial Differential Equations.”**
 
-Delay and memory-driven PDEs are generally not Markovian in the instantaneous field \(u(t,x)\). Their natural state is the history segment
+HS-FNO is designed for delay and memory-dependent PDEs whose future evolution cannot be represented as a Markovian map of the instantaneous state alone. The codebase implements the history-space formulation used in the paper: the model lifts trajectories to a history field, predicts only the newly exposed future slice or segment, and advances the history window with an exact deterministic shift-append transport.
 
-\[
-u_t(\theta,x)=u(t+\theta,x), \qquad \theta\in[-\tau,0].
-\]
+The repository is intended to support:
 
-HS-FNO uses this structure directly. Instead of learning a full history-to-history map, the model predicts only the newly exposed future slice and updates the remaining history window using exact deterministic shift-append transport. This separates the learned part of the update from the part already determined by the previous history state.
+- reproduction of the experiments reported in the preprint;
+- comparison against current-state, lag-stack, history-to-history, recurrent, U-Net, and transformer baselines;
+- ablation studies for HS-FNO design choices; and
+- generation of paper-ready metrics, tables, plots, and reproducibility logs.
 
-The repository includes benchmark generation, reference solvers, model training, evaluation scripts, baselines, ablations, and tools for reproducing the reported tables and figures.
+## Repository contents
 
-## Repository overview
+```text
+configs/                 # Shared defaults and per-benchmark experiment configs
+hsno/                    # Data, solver, model, training, evaluation, and utility code
+scripts/                 # Single-purpose experiment, analysis, plotting, and audit scripts
+tests/                   # Unit and smoke tests for solvers, data construction, models, and logging
+run_all_experiments.py   # Main multi-benchmark experiment runner
+analyze_all_results.py   # Statistical report generator for completed experiments
+Makefile                 # Convenience targets for paper-result workflows
+```
 
-HS-FNO is evaluated on five delay and memory-driven PDE benchmark families:
+## Method overview
 
-- delayed reaction-diffusion,
-- spatial epidemiology with delayed infectiousness,
-- nonlocal neural-field dynamics with delayed coupling,
-- delayed wave dynamics,
-- distributed-memory PDE closures.
+For delay PDEs, the instantaneous state `u(t, x)` is generally non-Markovian: its future can depend on a past trajectory segment. HS-FNO instead works with the history state
 
-The main comparison includes:
+```text
+u_t(theta, x) = u(t + theta, x),   theta in [-tau, 0].
+```
 
-- current-state neural operator,
-- lag-stack neural operator,
-- unconstrained history-to-history operator,
-- ConvLSTM,
-- temporal U-Net,
-- temporal transformer,
-- HS-FNO variants and ablations.
+The main model, `hs_fno`, learns an exposed-future predictor on this history-space domain. At each step it:
 
-The primary metrics are one-step relative error, history-space relative error, rollout relative error, efficiency, and robustness under held-out delay, held-out parameter, and resolution-transfer regimes.
+1. encodes the current history window;
+2. applies Fourier neural operator layers over the history-space representation;
+3. predicts the next exposed future slice or segment; and
+4. updates the window using deterministic `shift_append` history transport.
+
+This repository also includes non-headline history-space variants and conventional baselines to support the comparisons and ablations described in the preprint.
+
+## Implemented benchmarks
+
+Benchmark configuration files live in `configs/`:
+
+| Config | Problem family |
+| --- | --- |
+| `delayed_reaction_diffusion.yaml` | Delayed reaction-diffusion PDE |
+| `epidemic_delay.yaml` | Epidemic latency PDE |
+| `nonlocal_neural_field.yaml` | Pairwise-delay neural field |
+| `delayed_wave.yaml` | Delayed wave equation |
+| `distributed_memory.yaml` | Distributed-memory PDE |
+
+The suite includes method-of-steps reference solvers with interpolation delay buffers, smooth random initial histories, trajectory-level train/validation/test splits, sliding history-window supervised examples, in-distribution and out-of-distribution evaluation regimes, and physical-space rollout metrics after decoding with train-set normalizers.
 
 ## Installation
 
-Create a virtual environment and install the dependencies:
+Python 3.10 or newer is recommended.
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-````
+```
 
-Python 3.10+ is recommended.
-
-The code uses PyTorch, NumPy, SciPy-compatible dependencies, matplotlib, pandas, tqdm, PyYAML, and pytest. CUDA is used automatically when available, but the default settings are CPU-compatible.
+The defaults are CPU-runnable. CUDA is used automatically when a compatible PyTorch installation and GPU are available.
 
 ## Quickstart
 
-Run a small smoke-test version of the benchmark suite:
+Run a smoke version of all five benchmarks and the major model classes:
 
 ```bash
 python run_all_experiments.py --quick --overwrite
 ```
 
-Run the full default experiment suite:
+Run only the headline HS-FNO model in quick mode:
 
 ```bash
-python run_all_experiments.py
+python run_all_experiments.py --quick --models hs_fno --overwrite
 ```
 
-The default full run uses ten independent seeds:
-
-```text
-7, 8, 9, 10, 11, 12, 13, 14, 15, 16
-```
-
-Run a smaller seed set:
-
-```bash
-python run_all_experiments.py --seeds 7 8 9
-```
-
-Run only HS-FNO:
-
-```bash
-python run_all_experiments.py --models hs_fno
-```
-
-Run the core comparison:
-
-```bash
-python run_all_experiments.py --models current_state lag_stack history2history hs_fno
-```
-
-Use `--overwrite` to regenerate datasets, checkpoints, evaluation logs, and summary metrics.
-
-## Running a single benchmark
-
-Each benchmark has a YAML config in `configs/`.
-
-Example:
+Run one benchmark directly:
 
 ```bash
 python scripts/train_one.py configs/delayed_reaction_diffusion.yaml --quick --overwrite
 ```
 
-Available benchmark configs:
+Quick mode uses smaller grids, fewer trajectories, and one training epoch per model. It is intended for installation checks and workflow validation, not for drawing scientific conclusions.
 
-```text
-configs/delayed_reaction_diffusion.yaml
-configs/epidemic_delay.yaml
-configs/nonlocal_neural_field.yaml
-configs/delayed_wave.yaml
-configs/distributed_memory.yaml
+## Full experiment suite
+
+The default full suite uses 10 independent seeds (`7` through `16`) and the model list configured in `configs/defaults.yaml`.
+
+```bash
+python run_all_experiments.py
 ```
 
-## Method summary
+Useful variants:
 
-HS-FNO represents the delay-PDE state as a discrete history tensor. Given a history window, the model predicts only the unknown future slice. The next history state is then assembled by shifting the known history forward and appending the predicted slice.
+```bash
+# Use a custom seed subset
+python run_all_experiments.py --seeds 7 8 9
 
-This update has the form:
+# Run only HS-FNO
+python run_all_experiments.py --models hs_fno
 
-[
-u_{t+\Delta t}(\theta,\cdot)
-============================
-
-u_t(\theta+\Delta t,\cdot),
-\qquad \theta \in [-\tau,-\Delta t],
-]
-
-with only the newly exposed slice requiring prediction.
-
-The main model uses a Fourier neural operator over the history-space domain. For one-dimensional spatial problems, this is a field over ((\theta,x)). For two-dimensional spatial problems, this is a field over ((\theta,x_1,x_2)).
-
-## Implemented components
-
-The repository includes:
-
-* method-of-steps reference solvers with interpolation delay buffers,
-* delayed reaction-diffusion, epidemic delay, neural-field, delayed-wave, and distributed-memory benchmark generators,
-* smooth random initial-history generation,
-* trajectory-level train/validation/test splits,
-* sliding history-window supervised examples,
-* k-step rollout targets,
-* HS-FNO with exact shift-append history transport,
-* current-state, lag-stack, history-to-history, ConvLSTM, U-Net, and transformer baselines,
-* no-shift, conditioning, history-resolution, and backbone ablations,
-* normalized-space training and physical-space evaluation,
-* one-step, history-space, rollout, efficiency, and robustness metrics,
-* in-distribution, held-out-delay, held-out-parameter, and resolution-transfer regimes.
-
-## Configuration
-
-Shared defaults are defined in:
-
-```text
-configs/defaults.yaml
+# Run a compact core comparison
+python run_all_experiments.py --models current_state lag_stack history2history hs_fno
 ```
 
-This file controls:
+Use `--overwrite` when you intentionally want to regenerate seed-specific datasets, checkpoints, evaluation logs, and summary metrics under `outputs/`.
 
-* data sizes,
-* seed lists,
-* model lists,
-* training defaults,
-* early stopping,
-* per-model hyperparameters,
-* quick-mode overrides,
-* ablation settings.
+## Reproducibility workflow
 
-Benchmark-specific YAML files define equation parameters, solver settings, delays, boundary conditions, and evaluation regimes.
+By default, `run_all_experiments.py` resumes completed work where possible. It reuses per-seed/per-model evaluation logs under `outputs/logs/*_seed*_eval.json`; when a checkpoint exists but evaluation is missing or incomplete, it loads the checkpoint and finishes evaluation instead of retraining.
 
-## Outputs
-
-Running experiments creates an `outputs/` directory:
+Generated artifacts include:
 
 ```text
 outputs/
-├── data/                 # generated NPZ trajectories and metadata
-├── checkpoints/          # model checkpoints
-├── logs/                 # training and evaluation logs
-├── metrics/              # aggregate metric CSV/JSON files
-├── plots/                # generated plots
-└── results/
-    ├── raw_metrics.csv
-    ├── raw_metrics.jsonl
-    ├── run_summary.csv
-    ├── main_multiseed/
-    ├── statistics/
-    ├── tables/
-    ├── hparams/
-    └── runs/*/config.lock.json
+├── data/                 # Seed-specific generated NPZ trajectories and JSON metadata
+├── checkpoints/          # Seed-specific model state dicts
+├── metrics/              # Run-level all_metrics.csv/json and bootstrap-CI summaries
+├── results/
+│   ├── raw_metrics.csv   # Per-run/per-trajectory/per-rollout-step records
+│   ├── raw_metrics.jsonl
+│   ├── run_summary.csv
+│   ├── main_multiseed/   # Multi-seed summaries by model, benchmark, regime, and seed
+│   ├── statistics/       # Structured HS-FNO pairwise/rank/claim statistics
+│   ├── tables/           # Baseline comparison tables with uncertainty
+│   ├── hparams/          # Tuning/search-space logs
+│   └── runs/*/config.lock.json
+├── plots/                # Rollout, prediction, delay, resolution, and efficiency plots
+└── logs/                 # Copied configs, train logs, eval logs, and raw metric logs
 ```
 
-Each evaluated run stores a resolved configuration and metadata record, including command-line arguments, package versions, Python/CUDA/device information, seed, and config hash.
+For reproducibility, the workflow records resolved configs, command-line arguments, git commit, package versions, Python/CUDA/device metadata, seeds, and config hashes in machine-readable run logs. Splits are by trajectory rather than by history window, and normalization statistics are fit only on training trajectories.
 
-## Reproducing results
+## Paper tables, plots, and statistical summaries
 
-After running the experiment suite, aggregate the results with:
+After experiments have produced `outputs/metrics/all_metrics.csv`, generate the main Markdown statistical report with:
 
 ```bash
 python analyze_all_results.py
 ```
 
-This produces summary tables and statistics under:
+The report is written to `outputs/metrics/results_for_chatgpt.md` by default. It treats `hs_fno` as the headline model and summarizes rankings, benchmark/regime winners, paired HS-FNO-vs-baseline comparisons, OOD degradation, rollout growth, efficiency tradeoffs, and ablations. Primary rankings and paired comparisons use seed-aggregated means with 95% percentile bootstrap confidence intervals over the default 10 seeds.
 
-```text
-outputs/metrics/
-outputs/results/
-```
-
-The primary paper tables and figures should be regenerated from:
-
-```text
-outputs/results/raw_metrics.csv
-outputs/results/raw_metrics.jsonl
-```
-
-rather than entered manually.
-
-Useful workflows include:
+Convenience targets are available for common paper workflows:
 
 ```bash
 make analyze
@@ -220,19 +155,7 @@ make plots
 make all-paper-results
 ```
 
-if the provided `Makefile` is available.
-
-## Resume behavior
-
-The experiment runner reuses completed per-seed and per-model evaluation logs when possible. If a checkpoint exists but the corresponding evaluation log is missing or incomplete, the runner loads the checkpoint and completes evaluation instead of retraining.
-
-Use:
-
-```bash
-python run_all_experiments.py --overwrite
-```
-
-when you want to regenerate artifacts from scratch.
+`make all-paper-results` launches the main multi-seed runs, capacity sweeps, ablations, analysis, and plotting. Expect the full workflow to be substantially more expensive than quick mode.
 
 ## Tests
 
@@ -242,37 +165,11 @@ Run the test suite with:
 python -m pytest -q
 ```
 
-The tests cover:
-
-* shift-append behavior,
-* delay interpolation,
-* rollout target construction,
-* OOD and resolution-transfer regime construction,
-* normalization and decoding,
-* model naming,
-* model output shapes,
-* analysis utilities,
-* small solver smoke runs.
-
-## Data notes
-
-The synthetic PDE benchmark datasets are generated by the scripts in this repository.
-
-If using external traffic datasets for the optional real-world sanity check, this repository does not need to redistribute the raw METR-LA or PEMS-BAY files. Users should obtain those datasets from their public benchmark sources and place them in the expected local data directory before running the corresponding scripts.
-
-## Reproducibility notes
-
-* Default experiments use ten independent seeds.
-* Random seeds are set through `hsno.utils.seed.set_seed`.
-* Seed-specific artifacts include `_seed<value>` in their filenames.
-* Normalization statistics are fit only on training trajectories.
-* Dataset splits are by trajectory, not by sliding window.
-* Resolved configs are saved for each evaluated run.
-* Metrics are computed after decoding predictions back to physical space.
+Tests cover shift-append behavior, delay interpolation, rollout target construction, OOD/resolution regime construction, normalization decoding, model naming, analysis renaming, tensor shapes, reproducibility logging, and tiny solver smoke runs.
 
 ## Citation
 
-If you use this code, please cite the accompanying paper:
+If you use this repository in academic work, please cite the arXiv/SSRN preprint:
 
 ```bibtex
 @misc{shikhman2026hsfno,
@@ -283,6 +180,11 @@ If you use this code, please cite the accompanying paper:
 }
 ```
 
-## License
+The BibTeX entry above is a temporary citation stub; replace it with the final arXiv or SSRN metadata when preparing a manuscript.
 
-See `LICENSE` for licensing information.
+## Notes for contributors
+
+- Keep `hs_fno` as the headline model name in configs, metrics, and analysis outputs.
+- Prefer adding new experiments through YAML configs and reusable scripts so that runs remain auditable.
+- Regenerate tables and figures from `outputs/results/raw_metrics.csv` or `.jsonl` rather than hand-entering values.
+- Do not treat quick-mode metrics as paper evidence; use the multi-seed workflows for scientific claims.
