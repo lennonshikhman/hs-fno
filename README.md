@@ -1,6 +1,6 @@
 # HS-FNO: History-Space Fourier Neural Operator for Non-Markovian Partial Differential Equations
 
-This repository contains the reference PyTorch implementation and reproducibility workflow for the arXiv/SSRN preprint **“HS-FNO: History-Space Fourier Neural Operator for Non-Markovian Partial Differential Equations.”**
+This repository contains the reference PyTorch implementation and reproducibility workflow for the paper **“HS-FNO: History-Space Fourier Neural Operator for Non-Markovian Partial Differential Equations.”**
 
 HS-FNO is designed for delay and memory-dependent PDEs whose future evolution cannot be represented as a Markovian map of the instantaneous state alone. The codebase implements the history-space formulation used in the paper: the model lifts trajectories to a history field, predicts only the newly exposed future slice or segment, and advances the history window with an exact deterministic shift-append transport.
 
