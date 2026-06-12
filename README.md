@@ -173,10 +173,13 @@ If you use this repository in academic work, please cite the arXiv/SSRN preprint
 
 ```bibtex
 @misc{shikhman2026hsfno,
-  title        = {HS-FNO: History-Space Fourier Neural Operator for Non-Markovian Partial Differential Equations},
-  author       = {Shikhman, Lennon J.},
-  year         = {2026},
-  note         = {Code available at https://github.com/lennonshikhman/hs-fno}
+      title={HS-FNO: History-Space Fourier Neural Operator for Non-Markovian Partial Differential Equations}, 
+      author={Lennon J. Shikhman},
+      year={2026},
+      eprint={2605.09523},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2605.09523}, 
 }
 ```
 
